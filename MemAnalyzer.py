@@ -10,8 +10,7 @@ def main(binary):
     args = [binary]
     io = process(args)
     gdbwrapper = GdbWrapper(io.pid)
-    for line in  gdbwrapper.vmmap():
-        print line
+    print gdbwrapper.get_value(arg_name="main_arena")
 
     io.interactive()
 if __name__ == "__main__":

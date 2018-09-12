@@ -2,6 +2,7 @@ from pygdbmi.gdbcontroller import GdbController
 from pprint import pprint
 import re
 import copy
+from pwn import *
 class GdbWrapper():
     _COLORS = {}
     Maps=[]
@@ -99,8 +100,8 @@ class GdbWrapper():
                 for x in range(0, len(key_values)):
                     if key_values[x] == "{":
                         index.append(x)
-                    elif key_values[x] =="}":
-                        if len(index) >1:
+                    elif key_values[x] == "}":
+                        if len(index) > 1:
                             index.pop(-1)
                             continue
                         else:
@@ -110,14 +111,14 @@ class GdbWrapper():
                             deeper = copy.copy(key_values)
                             deeper = deeper[left + 1: right]
                             value = self._parse_all(deeper)
-                            name_left = left
+                            name_left = left - 1
                             name_right = left
                             while name_left > 0:
-                                if key_values[name_left] == "=":
+                                if key_values[name_left] == '=':
                                     name_right = name_left
                                 if name_left == 0:
                                     break
-                                if name_left == "," or name_left == "{":
+                                if key_values[name_left] == ',' or key_values[name_left] == '{':
                                     name_left += 1
                                     break
                                 name_left -= 1
@@ -148,7 +149,7 @@ class GdbWrapper():
                 for x in parsed:
                     if type(x).__name__ == "dict":
                         dict_ret = dict(dict_ret.items() + x.items())
-                    else:
+                    elif x != '':
                         dict_ret = dict(dict_ret.items() + {x: x}.items())
                 return dict_ret
             else:
