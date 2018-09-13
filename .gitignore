@@ -7,3 +7,4 @@ dist
 build
 .gdb*
 .idea
+AutoExp.py

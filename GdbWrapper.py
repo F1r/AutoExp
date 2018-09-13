@@ -4,73 +4,23 @@ import re
 import copy
 from pwn import *
 class GdbWrapper():
-    _COLORS = {}
-    Maps=[]
     def __init__(self, pid):
-        self.pid = pid
+        self._pid = pid
+        self._Heap = None
+        self._COLORS = {}
+        self._Maps = []
+        self._update_color()
     def _attach(self):
         self.gdbmi = GdbController()
         init_cmds = ["set exception-verbose on",
                      "source ~/.gdbinit",
                      "set print element 0",
-                     "attach {}".format(str(self.pid)),
+                     "attach {}".format(str(self._pid)),
                      "set charset ASCII"]
         for cmd in init_cmds:
             self.gdbmi.write(cmd)
     def _detach(self):
         self.gdbmi.exit()
-    def exec_cmds(self, cmds, parsed = False): #cmd( str ) and cmds( [] ) are both supported
-        self._attach()
-        if type(cmds).__name__ == "str":
-            cmds = [cmds]
-        ret = []
-        for cmd in cmds:
-            start_ret = False
-            cmd_ret = ""
-            for x in self.gdbmi.write(cmd):
-                if type(x["payload"]).__name__ == 'unicode':
-                    if start_ret == True:
-                        cmd_ret += (x["payload"].encode("unicode-escape").decode("unicode-escape").encode("ascii"))
-                    try:
-                        if cmd in x["payload"].encode("unicode-escape").decode("unicode-escape").encode("ascii"):
-                            start_ret = True
-                    except:
-                        pass
-                elif type(x["payload"]).__name__ == 'str':
-                    if start_ret == True:
-                        cmd_ret += (x["payload"])
-                    try:
-                        if cmd in x["payload"]:
-                            start_ret = True
-                    except:
-                        pass
-            ret.append(cmd_ret.replace("\\n", "\n"))
-        self._detach()
-        if len(ret) == 1:
-            if parsed == False:
-                return ret[0]
-            try:
-                toparse = copy.copy(ret)
-                parsed_ret = self._parse_all(toparse[0])
-                if type(parsed_ret).__name__ == "list" and len(parsed_ret) == 1:
-                    return parsed_ret[0]
-                return parsed_ret
-            except Exception,e:
-                pass
-        else:
-            if parsed == False:
-                return ret
-            try:
-                toparse = copy.copy(ret)
-                parsed_list = []
-                for one_ret in toparse:
-                    parsed_ret = self._parse_all(one_ret)
-                    if type(parsed_ret).__name__ == "list" and len(parsed_ret) == 1:
-                        parsed_ret = parsed_ret[0]
-                    parsed_list.append(parsed_ret)
-                return parsed_list
-            except Exception,e:
-                pass
     def _parse_single(self, single):
         if "=" in single:
             single = re.sub("\(.*?\)|\<.*?\>", "", single).strip().replace(" ", "").split("=")
@@ -136,8 +86,8 @@ class GdbWrapper():
             is_dict = False
             parsed = []
             singles = key_values.split(",")
-            if "" in singles:
-                singles.remove("")
+            while '' in line:
+                line.remove('')
             for single in singles:
                 single_parse = self._parse_single(single)
                 parsed.append(single_parse)
@@ -154,6 +104,89 @@ class GdbWrapper():
                 return dict_ret
             else:
                 return parsed
+    def _update_color(self):
+        raw_output = self.exec_cmds("vmmap").split("\n")
+        # get STACK_COLOR
+        self._COLORS["STACK"] = copy.copy(
+            raw_output[0][raw_output[0].find("STACK") - 6: raw_output[0].find("STACK")]).strip()
+        self._COLORS["HEAP"] = copy.copy(
+            raw_output[0][raw_output[0].find("HEAP") - 6: raw_output[0].find("HEAP")]).strip()
+        self._COLORS["CODE"] = copy.copy(
+            raw_output[0][raw_output[0].find("CODE") - 6: raw_output[0].find("CODE")]).strip()
+        self._COLORS["DATA"] = copy.copy(
+            raw_output[0][raw_output[0].find("DATA") - 6: raw_output[0].find("DATA")]).strip()
+        self._COLORS["RWX"] = copy.copy(raw_output[0][raw_output[0].find("RWX") - 6: raw_output[0].find("RWX")]).strip()
+        self._COLORS["RODATA"] = copy.copy(
+            raw_output[0][raw_output[0].find("RODATA") - 6: raw_output[0].find("RODATA")]).strip()
+        self._COLORS["RESET"] = copy.copy(
+            raw_output[0][raw_output[0].find("STACK") + 5: raw_output[0].find("STACK") + 10]).strip()
+    def exec_cmds(self, cmds, parsed = False): #cmd( str ) and cmds( [] ) are both supported
+        self._attach()
+        if type(cmds).__name__ == "str":
+            cmds = [cmds]
+        ret = []
+        for cmd in cmds:
+            start_ret = False
+            cmd_ret = ""
+            for x in self.gdbmi.write(cmd):
+                if type(x["payload"]).__name__ == 'unicode':
+                    if start_ret == True:
+                        cmd_ret += (x["payload"].encode("unicode-escape").decode("unicode-escape").encode("ascii"))
+                    try:
+                        if cmd in x["payload"].encode("unicode-escape").decode("unicode-escape").encode("ascii"):
+                            start_ret = True
+                    except:
+                        pass
+                elif type(x["payload"]).__name__ == 'str':
+                    if start_ret == True:
+                        cmd_ret += (x["payload"])
+                    try:
+                        if cmd in x["payload"]:
+                            start_ret = True
+                    except:
+                        pass
+            ret.append(cmd_ret.replace("\\n", "\n"))
+        self._detach()
+        if len(ret) == 1:
+            if parsed == False:
+                return ret[0]
+            try:
+                toparse = copy.copy(ret)
+                parsed_ret = self._parse_all(toparse[0])
+                if type(parsed_ret).__name__ == "list" and len(parsed_ret) == 1:
+                    return parsed_ret[0]
+                return parsed_ret
+            except Exception,e:
+                pass
+        else:
+            if parsed == False:
+                return ret
+            try:
+                toparse = copy.copy(ret)
+                parsed_list = []
+                for one_ret in toparse:
+                    parsed_ret = self._parse_all(one_ret)
+                    if type(parsed_ret).__name__ == "list" and len(parsed_ret) == 1:
+                        parsed_ret = parsed_ret[0]
+                    parsed_list.append(parsed_ret)
+                return parsed_list
+            except Exception,e:
+                pass
+    def heap(self):
+        raw_out = self.exec_cmds("heap")
+        for key,color_tag in self._COLORS.items():
+            raw_out = raw_out.replace(color_tag, "")
+        self._Heap = self._parse_all(raw_out)
+        for key, value in self._Heap.items():
+            if "FASTBIN" in key:
+                new_key = key[:key.find("FASTBIN")]
+                self._Heap[new_key] = self._Heap.pop(key)
+                self._Heap[new_key]["TAG"] = "FASTBIN"
+            elif "PREV_INUSE" in key:
+                new_key = key[:key.find("PREV_INUSE")]
+                self._Heap[new_key] = self._Heap.pop(key)
+                self._Heap[new_key]["TAG"] = "PREV_INUSE"
+        return self._Heap
     def get_value(self, arg_name = "", address = None):
         if arg_name != "":
             exec_ret = self.exec_cmds("p {}".format(arg_name))
@@ -206,5 +239,55 @@ class GdbWrapper():
                     map_node["path"] = line[5]
                 except:
                     map_node["path"] = ""
-                self.Maps.append(map_node)
-        return self.Maps
+                self._Maps.append(map_node)
+        return self._Maps
+    def search(self, type="", value=None):
+        ret_list = []
+        if type in ["qword", "dword", "word", "short", "byte", "pointer"] :
+            for line in self.exec_cmds("search -t " + type + " " + hex(value).replace("L", "")).split("\n"):
+                if "warn" in line or len(line) == 0:
+                    continue
+                line = line.split(" ")
+                try:
+                    while '' in line:
+                        line.remove('')
+                except Exception,e:
+                    pass
+                search_node = {}
+                for key, cvalue in self._COLORS.items():
+                    if cvalue in line[0] and key != "RESET":
+                        search_node["TYPE"] = key
+                        if key != "RODATA":
+                            break
+                if not search_node.has_key("TYPE"):
+                    continue
+                search_node["PATH"] = line[0].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
+                addr = line[2].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
+                search_node["ADDR"] = int(addr, 16)
+                search_node["VAL"] = value
+                ret_list.append(search_node)
+        elif type in ["string", "bytes"]:
+            for line in self.exec_cmds("search -t " + type + " " + value).split("\n"):
+                if "warn" in line or len(line) == 0:
+                    continue
+                line = line.split(" ")
+                try:
+                    while '' in line:
+                        line.remove('')
+                except Exception, e:
+                    pass
+                search_node = {}
+                for key, cvalue in self._COLORS.items():
+                    if cvalue in line[0] and key != "RESET":
+                        search_node["TYPE"] = key
+                        if key != "RODATA":
+                            break
+                if not search_node.has_key("TYPE"):
+                    continue
+                search_node["PATH"] = line[0].replace(self._COLORS[search_node["TYPE"]], "").replace(
+                    self._COLORS["RESET"], "")
+                addr = line[2].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
+                search_node["ADDR"] = int(addr, 16)
+                search_node["VAL"] = value
+                ret_list.append(search_node)
+        return ret_list
