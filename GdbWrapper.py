@@ -245,49 +245,57 @@ class GdbWrapper():
         ret_list = []
         if type in ["qword", "dword", "word", "short", "byte", "pointer"] :
             for line in self.exec_cmds("search -t " + type + " " + hex(value).replace("L", "")).split("\n"):
-                if "warn" in line or len(line) == 0:
-                    continue
-                line = line.split(" ")
                 try:
-                    while '' in line:
-                        line.remove('')
+                    if "warn" in line or len(line) == 0:
+                        continue
+                    line = line.split(" ")
+                    try:
+                        while '' in line:
+                            line.remove('')
+                    except Exception,e:
+                        pass
+                    search_node = {}
+                    for key, cvalue in self._COLORS.items():
+                        if cvalue in line[0] and key != "RESET":
+                            search_node["TYPE"] = key
+                            if key != "RODATA":
+                                break
+                    if not search_node.has_key("TYPE"):
+                        continue
+                    search_node["PATH"] = line[0].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
+                    addr = line[2].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
+                    search_node["ADDR"] = int(addr, 16)
+                    search_node["VAL"] = value
+                    ret_list.append(search_node)
                 except Exception,e:
-                    pass
-                search_node = {}
-                for key, cvalue in self._COLORS.items():
-                    if cvalue in line[0] and key != "RESET":
-                        search_node["TYPE"] = key
-                        if key != "RODATA":
-                            break
-                if not search_node.has_key("TYPE"):
+                    print e
                     continue
-                search_node["PATH"] = line[0].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
-                addr = line[2].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
-                search_node["ADDR"] = int(addr, 16)
-                search_node["VAL"] = value
-                ret_list.append(search_node)
         elif type in ["string", "bytes"]:
             for line in self.exec_cmds("search -t " + type + " " + value).split("\n"):
-                if "warn" in line or len(line) == 0:
-                    continue
-                line = line.split(" ")
                 try:
-                    while '' in line:
-                        line.remove('')
-                except Exception, e:
-                    pass
-                search_node = {}
-                for key, cvalue in self._COLORS.items():
-                    if cvalue in line[0] and key != "RESET":
-                        search_node["TYPE"] = key
-                        if key != "RODATA":
-                            break
-                if not search_node.has_key("TYPE"):
+                    if "warn" in line or len(line) == 0:
+                        continue
+                    line = line.split(" ")
+                    try:
+                        while '' in line:
+                            line.remove('')
+                    except Exception, e:
+                        pass
+                    search_node = {}
+                    for key, cvalue in self._COLORS.items():
+                        if cvalue in line[0] and key != "RESET":
+                            search_node["TYPE"] = key
+                            if key != "RODATA":
+                                break
+                    if not search_node.has_key("TYPE"):
+                        continue
+                    search_node["PATH"] = line[0].replace(self._COLORS[search_node["TYPE"]], "").replace(
+                        self._COLORS["RESET"], "")
+                    addr = line[2].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
+                    search_node["ADDR"] = int(addr, 16)
+                    search_node["VAL"] = value
+                    ret_list.append(search_node)
+                except Exception,e:
+                    print e
                     continue
-                search_node["PATH"] = line[0].replace(self._COLORS[search_node["TYPE"]], "").replace(
-                    self._COLORS["RESET"], "")
-                addr = line[2].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
-                search_node["ADDR"] = int(addr, 16)
-                search_node["VAL"] = value
-                ret_list.append(search_node)
         return ret_list
