@@ -86,8 +86,8 @@ class GdbWrapper():
             is_dict = False
             parsed = []
             singles = key_values.split(",")
-            while '' in line:
-                line.remove('')
+            while '' in singles:
+                singles.remove('')
             for single in singles:
                 single_parse = self._parse_single(single)
                 parsed.append(single_parse)
