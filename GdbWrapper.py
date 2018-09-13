@@ -80,7 +80,11 @@ class GdbWrapper():
             for dict_node in parsed_list:
                 parsed_ret = dict(parsed_ret.items() + dict_node.items())
             if len(key_values.strip().replace(" ", "")) > 0:
-                parsed_ret = dict(parsed_ret.items() + self._parse_all(key_values).items())
+                deeper = self._parse_all(key_values)
+                if type(deeper).__name__ == "dict":
+                    parsed_ret = dict(parsed_ret.items() + deeper.items())
+                else:
+                    log.debug(str(deeper))
             return parsed_ret
         elif "{" not in key_values and "}"  not in key_values:
             is_dict = False
@@ -262,8 +266,13 @@ class GdbWrapper():
                                 break
                     if not search_node.has_key("TYPE"):
                         continue
+                    for key, cvalue in self._COLORS.items():
+                        for i in range(0, len(line)):
+                            line[i] = line[i].replace(cvalue, "  ").strip()
+                    while '' in line:
+                        line.remove('')
                     search_node["PATH"] = line[0].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
-                    addr = line[2].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
+                    addr = line[1].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
                     search_node["ADDR"] = int(addr, 16)
                     search_node["VAL"] = value
                     ret_list.append(search_node)
@@ -289,9 +298,14 @@ class GdbWrapper():
                                 break
                     if not search_node.has_key("TYPE"):
                         continue
+                    for key, cvalue in self._COLORS.items():
+                        for i in range(0, len(line)):
+                            line[i] = line[i].replace(cvalue, "  ").strip()
+                    while '' in line:
+                        line.remove('')
                     search_node["PATH"] = line[0].replace(self._COLORS[search_node["TYPE"]], "").replace(
                         self._COLORS["RESET"], "")
-                    addr = line[2].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
+                    addr = line[1].replace(self._COLORS[search_node["TYPE"]], "").replace(self._COLORS["RESET"], "")
                     search_node["ADDR"] = int(addr, 16)
                     search_node["VAL"] = value
                     ret_list.append(search_node)
