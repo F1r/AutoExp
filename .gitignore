@@ -8,3 +8,5 @@ build
 .gdb*
 .idea
 AutoExp.py
+core
+test
