@@ -34,7 +34,7 @@ def Free(index):
 if __name__ == "__main__":
     #test env
     binary = "./bins/a679df07a8f3a8d590febad45336d031-stkof"
-    bss_ptrlist = 6299976
+    bss_ptrlist = None
     free_index = None
     free_try = 2
     while bss_ptrlist == None:
